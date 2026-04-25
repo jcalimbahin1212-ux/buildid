@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>BuildID — Remote Viewer</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>BuildID</h1>
+      <span id="status" class="status idle">disconnected</span>
+    </header>
+
+    <main id="join" class="panel">
+      <h2>Connect to a desktop</h2>
+      <p>Enter the 6-character code shown in the BuildID app on the host computer.</p>
+      <form id="join-form">
+        <input
+          id="code"
+          name="code"
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="6"
+          placeholder="ABC123"
+          required
+        />
+        <button type="submit">Connect</button>
+      </form>
+      <label class="toggle" style="margin-top:10px;display:flex;gap:8px;align-items:center;color:#8b949e">
+        <input type="checkbox" id="request-trust" />
+        Ask host to trust this device (skip code next time)
+      </label>
+      <p id="join-error" class="error" hidden></p>
+
+      <div id="trusted-block" class="trusted-block" hidden>
+        <h3 style="margin:24px 0 8px;font-size:14px;color:#8b949e;text-transform:uppercase;letter-spacing:1px">Trusted hosts</h3>
+        <div id="trusted-list"></div>
+      </div>
+
+      <div class="stealth-block">
+        <button type="button" id="stealth-btn" class="ghost">Open in about:blank (stealth)</button>
+        <p class="muted-tiny">Opens this viewer inside an <code>about:blank</code> tab so the URL bar stays generic. Pop-ups must be allowed.</p>
+      </div>
+    </main>
+
+    <main id="stage" class="stage" hidden>
+      <div class="stage-bar">
+        <span id="stage-info">Connected</span>
+        <label class="toggle">
+          <input type="checkbox" id="audio-toggle" checked />
+          Audio
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="control-toggle" checked />
+          Send input
+        </label>
+        <button id="fullscreen-btn" type="button">Fullscreen</button>
+        <button id="disconnect-btn" type="button" class="danger">Disconnect</button>
+      </div>
+      <div class="video-wrap" id="video-wrap">
+        <video id="remote-video" autoplay playsinline></video>
+        <div id="overlay" class="overlay" tabindex="0"></div>
+      </div>
+      <div id="stats" class="stats"></div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

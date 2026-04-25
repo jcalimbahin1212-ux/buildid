@@ -1,0 +1,28 @@
+# Render blueprint for the BuildID signaling server.
+# Deploy: push this repo to GitHub, then go to https://dashboard.render.com/blueprints
+# and point it at this repo. Render will read render.yaml and create the service.
+
+services:
+  - type: web
+    name: buildid-signaling
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 8080
+      - key: SESSION_SECRET
+        sync: false           # set this in the Render dashboard (must match Vercel's value)
+      - key: ICE_SERVERS
+        value: '[{"urls":"stun:stun.l.google.com:19302"}]'
+      - key: LINK_CODE_TTL_SECONDS
+        value: 600
+      - key: ALLOWED_ORIGINS
+        sync: false           # set this to your Vercel URL, e.g. https://buildid.vercel.app

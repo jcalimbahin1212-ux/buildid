@@ -1,0 +1,5 @@
+# Don't deploy the desktop app or its native deps to Vercel.
+desktop/
+**/*.node
+.env
+node_modules

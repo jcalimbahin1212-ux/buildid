@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BuildID Host</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #0d1117;
+        color: #e6edf3;
+        padding: 18px;
+      }
+      h1 { margin: 0 0 4px; font-size: 20px; }
+      p.muted { margin: 4px 0 18px; color: #8b949e; }
+      .card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .code-display {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 36px;
+        letter-spacing: 8px;
+        text-align: center;
+        padding: 12px;
+        background: #0d1117;
+        border: 1px dashed #30363d;
+        border-radius: 8px;
+        user-select: all;
+      }
+      .row { display: flex; gap: 8px; margin-top: 12px; }
+      button {
+        flex: 1;
+        padding: 8px 12px;
+        background: #2f81f7;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button.secondary { background: #30363d; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      label { display: block; margin: 8px 0 4px; color: #8b949e; }
+      select, input {
+        width: 100%;
+        padding: 6px 8px;
+        background: #0d1117;
+        color: #e6edf3;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+      }
+      .status {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid #30363d;
+        color: #8b949e;
+        margin-left: 8px;
+      }
+      .status.connected { color: #2ea043; border-color: #2ea043; }
+      .status.viewer { color: #2f81f7; border-color: #2f81f7; }
+      .status.error { color: #da3633; border-color: #da3633; }
+      .url { color: #8b949e; font-size: 11px; margin-top: 6px; word-break: break-all; }
+      .trust-row {
+        display: flex; align-items: center; gap: 8px;
+        background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 6px 8px;
+      }
+      .trust-row .name { flex: 1; font-weight: 500; }
+      .trust-row .meta { color: #8b949e; font-size: 11px; }
+      .trust-row button { flex: none; padding: 4px 10px; font-size: 11px; background: #30363d; }
+      .trust-row button.danger { background: #da3633; }
+    </style>
+  </head>
+  <body>
+    <h1>BuildID <span id="signaling-status" class="status">offline</span></h1>
+    <p class="muted">Share the code below with someone on the BuildID website to let them control this computer.</p>
+
+    <div class="card">
+      <label>Source</label>
+      <select id="source-select"></select>
+      <label>Frame rate</label>
+      <select id="fps-select">
+        <option value="30">30 fps</option>
+        <option value="60" selected>60 fps</option>
+      </select>
+      <label>Max bitrate</label>
+      <select id="bitrate-select">
+        <option value="2000000">2 Mbps</option>
+        <option value="6000000" selected>6 Mbps</option>
+        <option value="12000000">12 Mbps</option>
+      </select>
+      <div class="row">
+        <button id="start-btn">Start hosting</button>
+        <button id="stop-btn" class="secondary" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Your link code <span id="viewer-status" class="status">no viewer</span></label>
+      <div id="code-display" class="code-display">——————</div>
+      <div id="join-url" class="url"></div>
+      <div class="row">
+        <button id="rotate-btn" class="secondary" disabled>New code</button>
+        <button id="copy-btn" class="secondary" disabled>Copy code</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Trusted devices</label>
+      <p class="muted" style="margin:4px 0 8px;color:#8b949e;font-size:12px">
+        Trusted devices can connect any time this app is running, without entering a code.
+      </p>
+      <div id="trusted-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <p id="trusted-empty" class="muted" style="margin:6px 0;color:#8b949e;font-size:12px;display:none">
+        No trusted devices yet. After a viewer connects with a code, you'll be asked to trust them.
+      </p>
+    </div>
+
+    <div id="log" class="card" style="font-family: ui-monospace, monospace; font-size: 11px; color: #8b949e; max-height: 120px; overflow-y: auto;"></div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

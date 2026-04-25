@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "buildCommand": null,
+  "outputDirectory": "server/public",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/cloak.html", "destination": "/cloak" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "ALLOWALL" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; connect-src 'self' https: wss: ws:; media-src 'self' blob: mediastream:; img-src 'self' data: blob:; frame-ancestors 'self' about:" }
+      ]
+    }
+  ]
+}

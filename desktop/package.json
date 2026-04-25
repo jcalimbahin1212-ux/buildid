@@ -1,0 +1,19 @@
+{
+  "name": "buildid-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BuildID desktop host — captures the screen and streams it to the web viewer.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-rebuild"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.2",
+    "dotenv": "^16.4.5",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "electron": "^31.3.0"
+  }
+}
