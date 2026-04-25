@@ -10,6 +10,7 @@ const trustStore = require('./src/trustStore');
 const { hashTrustSecret } = require('./src/hash');
 
 const SIGNALING_URL = process.env.SIGNALING_URL || process.env.PUBLIC_HOST || 'http://localhost:8080';
+const VIEWER_URL = process.env.PUBLIC_HOST || SIGNALING_URL;
 
 let mainWindow = null;
 
@@ -30,7 +31,7 @@ function createWindow() {
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.send('config', { signalingUrl: SIGNALING_URL });
+    mainWindow.webContents.send('config', { signalingUrl: SIGNALING_URL, viewerUrl: VIEWER_URL });
   });
 }
 

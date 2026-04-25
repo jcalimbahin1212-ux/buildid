@@ -3,7 +3,7 @@
 # `fly launch` overwrite this file with the correct app name.
 
 app = "buildid-signaling"
-primary_region = "sea"   # Seattle. Pick the region nearest to most viewers/hosts.
+primary_region = "sjc"   # San Jose. Pick the region nearest to most viewers/hosts.
 
 [build]
   dockerfile = "Dockerfile"

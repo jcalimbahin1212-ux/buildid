@@ -15,6 +15,7 @@ const sigStatus = document.getElementById('signaling-status');
 const viewerStatus = document.getElementById('viewer-status');
 
 let signalingUrl = 'http://localhost:8080';
+let viewerUrl = signalingUrl;
 let socket = null;
 let pc = null;
 let stream = null;
@@ -35,8 +36,9 @@ function log(...args) {
 function setSig(text, kind = '') { sigStatus.textContent = text; sigStatus.className = `status ${kind}`; }
 function setViewer(text, kind = '') { viewerStatus.textContent = text; viewerStatus.className = `status ${kind}`; }
 
-window.buildid.onConfig(({ signalingUrl: url }) => {
+window.buildid.onConfig(({ signalingUrl: url, viewerUrl: vurl }) => {
   signalingUrl = url;
+  viewerUrl = vurl || url;
   loadSocketIo(url).then(initSignaling).catch((e) => {
     setSig('script error', 'error');
     log('failed to load socket.io client:', e.message);
@@ -96,7 +98,7 @@ function register() {
     currentCode = ack.code;
     hostToken = ack.hostToken;
     codeDisplay.textContent = ack.code;
-    joinUrlEl.textContent = `${signalingUrl} — enter code on the website`;
+    joinUrlEl.textContent = `${viewerUrl} — enter code on the website`;
     rotateBtn.disabled = false;
     copyBtn.disabled = false;
     log('registered, code:', ack.code);
