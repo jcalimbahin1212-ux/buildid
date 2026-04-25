@@ -70,10 +70,10 @@ async function populateSources() {
 
 function initSignaling() {
   socket = io(signalingUrl, {
-    // Polling first for reliability behind null-origin (Electron file://);
-    // socket.io will upgrade to WebSocket transparently when available.
-    transports: ['polling', 'websocket'],
-    upgrade: true,
+    // WebSocket-only: avoids the multi-machine sticky-session problem on Fly,
+    // where polling sid round-robins across machines and returns 400.
+    transports: ['websocket'],
+    upgrade: false,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
