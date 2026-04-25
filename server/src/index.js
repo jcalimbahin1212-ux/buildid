@@ -97,9 +97,15 @@ const server = useTls
 const io = new IOServer(server, {
   cors: {
     // ALLOWED_ORIGINS is a comma-separated list. Use "*" in dev only.
-    origin: process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
-      : true,
+    // Electron host renderers have no Origin header (file://) — allow those too.
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const allow = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+        : null;
+      if (!allow || allow.includes('*') || allow.includes(origin)) return cb(null, true);
+      return cb(new Error('Origin not allowed'), false);
+    },
     credentials: false,
   },
   maxHttpBufferSize: 1e6,
