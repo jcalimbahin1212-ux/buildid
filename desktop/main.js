@@ -26,11 +26,6 @@ function createWindow() {
       sandbox: false, // we need preload to require electron modules
       nodeIntegration: false,
       backgroundThrottling: false, // keep WebRTC running when window is in background
-      // Local renderer connects to a remote signaling server. file:// origin is
-      // treated as null by Chromium and blocked by CORS even when the server
-      // sets ACAO:*. We're loading our own bundled renderer so disabling
-      // webSecurity here is safe.
-      webSecurity: false,
     },
   });
   mainWindow.removeMenu();
@@ -43,6 +38,23 @@ function createWindow() {
 // Required on newer Chromium for desktop capture without a system picker.
 app.whenReady().then(() => {
   trustStore.init(app.getPath('userData'));
+
+  // Make outgoing requests to the signaling server look same-origin.
+  // The renderer is loaded from file:// so Chromium tags requests with
+  // `Origin: null`, which trips CORS preflights regardless of server policy.
+  // Rewriting Origin on the way out is the most reliable workaround.
+  try {
+    const sigOrigin = new URL(SIGNALING_URL).origin;
+    session.defaultSession.webRequest.onBeforeSendHeaders(
+      { urls: [`${sigOrigin}/*`] },
+      (details, cb) => {
+        details.requestHeaders['Origin'] = sigOrigin;
+        cb({ requestHeaders: details.requestHeaders });
+      },
+    );
+  } catch (e) {
+    console.warn('[BuildID] could not install Origin rewriter:', e.message);
+  }
 
   session.defaultSession.setDisplayMediaRequestHandler(
     (_request, callback) => {
