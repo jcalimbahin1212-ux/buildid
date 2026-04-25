@@ -137,85 +137,24 @@ $('#stealth-btn').addEventListener('click', () => {
   w.document.close();
 });
 
-// ── Download viewer as a single self-contained HTML file ─────────────────────
-// Inlines style.css and client.js, and adds <base href> so root-relative
-// fetches (/api/config, /api/claim) still hit the production origin when the
-// file is opened from disk (file://).
+// ── Download viewer as a "math worksheet" decoy ──────────────────────────────
+// The generated HTML looks like an innocuous algebra worksheet. Typing the
+// passphrase "james" into any answer field opens the real viewer in an
+// about:blank window (same trick as the stealth button).
 const downloadBtn = $('#download-btn');
 if (downloadBtn) {
-  downloadBtn.addEventListener('click', async () => {
-    const errEl = $('#join-error');
-    errEl.hidden = true;
+  downloadBtn.addEventListener('click', () => {
     const orig = downloadBtn.textContent;
     downloadBtn.disabled = true;
     downloadBtn.textContent = 'Building…';
     try {
-      const origin = location.origin;
-      const [css, js] = await Promise.all([
-        fetch('/style.css').then((r) => r.ok ? r.text() : Promise.reject(new Error('style_failed'))),
-        fetch('/client.js').then((r) => r.ok ? r.text() : Promise.reject(new Error('client_failed'))),
-      ]);
-
-      // Build the HTML by cloning the live document, then swapping linked
-      // resources for inline ones. This keeps the markup in sync with whatever
-      // the page is right now.
-      const doc = document.implementation.createHTMLDocument('BuildID');
-      doc.documentElement.lang = 'en';
-
-      // Head: base href + meta + title + inline style
-      const head = doc.head;
-      const base = doc.createElement('base');
-      base.href = origin + '/';
-      head.appendChild(base);
-
-      const meta1 = doc.createElement('meta'); meta1.setAttribute('charset', 'utf-8'); head.appendChild(meta1);
-      const meta2 = doc.createElement('meta');
-      meta2.setAttribute('name', 'viewport');
-      meta2.setAttribute('content', 'width=device-width,initial-scale=1');
-      head.appendChild(meta2);
-
-      const title = doc.createElement('title');
-      title.textContent = 'BuildID — Remote Viewer';
-      head.appendChild(title);
-
-      const style = doc.createElement('style');
-      style.textContent = css;
-      head.appendChild(style);
-
-      // Body: copy live <body> innerHTML minus the existing <script> tags.
-      const liveBody = document.body.cloneNode(true);
-      liveBody.querySelectorAll('script').forEach((s) => s.remove());
-      // Strip any join-error state.
-      const je = liveBody.querySelector('#join-error');
-      if (je) { je.hidden = true; je.textContent = ''; }
-      // Hide the stage panel by default in the saved file (always start at join).
-      const stageEl = liveBody.querySelector('#stage');
-      if (stageEl) stageEl.hidden = true;
-      const joinEl = liveBody.querySelector('#join');
-      if (joinEl) joinEl.hidden = false;
-      // Reset status.
-      const statusBadge = liveBody.querySelector('#status');
-      if (statusBadge) {
-        statusBadge.className = 'status idle';
-        statusBadge.textContent = 'disconnected';
-      }
-      doc.body.innerHTML = liveBody.innerHTML;
-
-      // Scripts: socket.io is fetched from the signaling server lazily by
-      // ensureSocketIoLoaded() in the bundled client, so we only need the
-      // inlined client.js. That code uses /api/config which resolves against
-      // <base href>, so it still hits Vercel.
-      const script = doc.createElement('script');
-      script.type = 'module';
-      script.textContent = js;
-      doc.body.appendChild(script);
-
-      const html = '<!doctype html>\n' + doc.documentElement.outerHTML;
+      const viewerUrl = location.origin + '/';
+      const html = buildWorksheetHtml(viewerUrl);
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'BuildID.html';
+      a.download = 'Algebra_Practice_Worksheet.html';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -223,12 +162,121 @@ if (downloadBtn) {
       downloadBtn.textContent = 'Downloaded ✓';
       setTimeout(() => { downloadBtn.textContent = orig; downloadBtn.disabled = false; }, 1500);
     } catch (e) {
-      errEl.textContent = 'Could not build offline file: ' + (e.message || 'unknown');
+      const errEl = $('#join-error');
+      errEl.textContent = 'Could not build file: ' + (e.message || 'unknown');
       errEl.hidden = false;
       downloadBtn.textContent = orig;
       downloadBtn.disabled = false;
     }
   });
+}
+
+function buildWorksheetHtml(viewerUrl) {
+  const problems = [
+    { q: 'Solve for x:  3x + 7 = 22', a: '5' },
+    { q: 'Simplify:  4(2x − 3) − 5x', a: '3x − 12' },
+    { q: 'Factor:  x² − 9', a: '(x−3)(x+3)' },
+    { q: 'Solve:  2x − 5 = x + 4', a: '9' },
+    { q: 'Evaluate:  (−3)² + 4·5', a: '29' },
+    { q: 'Solve for y:  y/4 = 7', a: '28' },
+    { q: 'Simplify:  (2x³)(3x²)', a: '6x⁵' },
+    { q: 'Solve:  x² = 49', a: '±7' },
+    { q: 'Distribute:  −2(3x − 4)', a: '−6x + 8' },
+    { q: 'Solve:  5(x − 1) = 2x + 7', a: '4' },
+    { q: 'Slope between (2, 3) and (6, 11)', a: '2' },
+    { q: 'Simplify:  √(50)', a: '5√2' },
+  ];
+
+  const rows = problems.map((p, i) => `
+        <li>
+          <span class="q">${p.q}</span>
+          <span class="ans">x = <input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-i="${i}"></span>
+        </li>`).join('');
+
+  // Note: the trigger listener and viewer-open logic are kept short and
+  // unobtrusive so the page reads as a normal worksheet.
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Algebra I — Practice Worksheet</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f7f6f1; color: #222; font: 15px/1.55 Georgia, "Times New Roman", serif; }
+  .sheet { max-width: 760px; margin: 28px auto; background: #fff; padding: 36px 44px; border: 1px solid #d8d4c7; box-shadow: 0 1px 0 #ece7d7, 0 8px 24px rgba(0,0,0,0.06); }
+  header.sheet-h { border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: end; }
+  header.sheet-h h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
+  header.sheet-h .meta { font-size: 12px; color: #555; }
+  .name-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 22px; font-size: 13px; }
+  .name-row label { display: block; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; }
+  .name-row input { width: 100%; padding: 4px 0; border: none; border-bottom: 1px solid #888; font: inherit; background: transparent; outline: none; }
+  .instructions { background: #fffdf3; border-left: 3px solid #c9a227; padding: 10px 14px; font-size: 13px; color: #4b3d10; margin-bottom: 20px; }
+  ol.problems { padding-left: 22px; margin: 0; }
+  ol.problems li { margin: 0 0 14px; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px dotted #cfc9b6; }
+  ol.problems li:last-child { border-bottom: none; }
+  .q { flex: 1; font-size: 15px; }
+  .ans { font-family: "Cambria Math", "Times New Roman", serif; color: #333; }
+  .ans input { width: 110px; padding: 3px 6px; font: inherit; border: 1px solid #b9b3a0; background: #fcfbf5; border-radius: 2px; outline: none; }
+  .ans input:focus { border-color: #6b5b1f; background: #fff; }
+  footer.sheet-f { margin-top: 24px; font-size: 11px; color: #777; text-align: center; border-top: 1px solid #ece7d7; padding-top: 10px; }
+  @media print { body { background: #fff; } .sheet { box-shadow: none; border: none; margin: 0; padding: 24px; } }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="sheet-h">
+      <h1>Algebra I — Practice Worksheet</h1>
+      <div class="meta">Unit 4 · Equations &amp; Expressions</div>
+    </header>
+
+    <div class="name-row">
+      <div><label>Name</label><input type="text" autocomplete="off"></div>
+      <div><label>Class</label><input type="text" autocomplete="off"></div>
+      <div><label>Date</label><input type="text" autocomplete="off"></div>
+    </div>
+
+    <div class="instructions">
+      <strong>Instructions:</strong> Solve each problem and write your answer in the box.
+      Show your work on a separate sheet of paper. Reduce all fractions to lowest terms.
+    </div>
+
+    <ol class="problems">${rows}
+    </ol>
+
+    <footer class="sheet-f">Page 1 of 1 · Algebra I · Practice Set 4B</footer>
+  </main>
+
+<script>
+(function(){
+  var TARGET = ${JSON.stringify(viewerUrl)};
+  var PASS = 'james';
+  function trigger(input){
+    try { input.value = ''; } catch(e){}
+    try { input.blur(); } catch(e){}
+    var w = window.open('about:blank', '_blank');
+    if (!w) {
+      // Pop-up blocked — silently fail; user can re-trigger.
+      return;
+    }
+    w.document.open();
+    w.document.write(
+      '<!doctype html><html><head><meta charset="utf-8"><title>about:blank</title>' +
+      '<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style>' +
+      '</head><body><iframe src="' + TARGET + '" allow="autoplay; clipboard-read; clipboard-write; fullscreen; display-capture"></iframe></body></html>'
+    );
+    w.document.close();
+  }
+  document.addEventListener('input', function(ev){
+    var t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    var v = String(t.value || '').toLowerCase().replace(/\\s+/g,'');
+    if (v.indexOf(PASS) !== -1) trigger(t);
+  });
+})();
+</script>
+</body>
+</html>`;
 }
 
 function renderTrustedHosts() {
