@@ -1,0 +1,11 @@
+node_modules
+desktop
+api
+.vercel
+.env
+*.log
+.git
+.github
+README.md
+render.yaml
+vercel.json

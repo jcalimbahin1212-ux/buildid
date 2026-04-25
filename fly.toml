@@ -1,0 +1,42 @@
+# Fly.io app config for the BuildID signaling server.
+# Edit `app` and `primary_region` after running `fly launch`, or just let
+# `fly launch` overwrite this file with the correct app name.
+
+app = "buildid-signaling"
+primary_region = "sea"   # Seattle. Pick the region nearest to most viewers/hosts.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  ICE_SERVERS = '[{"urls":"stun:stun.l.google.com:19302"}]'
+  LINK_CODE_TTL_SECONDS = "600"
+  # Comma-separated list of origins allowed to open Socket.IO connections.
+  ALLOWED_ORIGINS = "https://buildid.vercel.app"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"     # WebRTC signaling needs persistent processes.
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+  cpus = 1
