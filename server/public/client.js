@@ -286,35 +286,24 @@ function buildWorksheetHtml(viewerUrl) {
     var w;
     try { w = window.open('about:blank', '_blank'); } catch(e){}
     if (!w) {
-      // Pop-up blocked — same-tab navigation as last resort.
-      try { location.href = TARGET; } catch(e){}
+      // Pop-up blocked — re-arm so the user can try again after allowing popups.
       opened = false;
       return;
     }
 
     var src = TARGET + (TARGET.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
-    var directNav = function(){
-      try { w.location.replace(src); } catch(e){
-        try { w.location.href = src; } catch(e2){}
-      }
-    };
 
     // Build the cloaked container via the DOM API (not document.write).
-    // This gives Chrome a normal parsed document inside the popup, which
-    // it treats more leniently for cross-origin iframe embedding than a
-    // document.write'd page in some configurations.
     try {
       var d = w.document;
       d.title = '';
       var head = d.head || d.getElementsByTagName('head')[0] || d.documentElement.appendChild(d.createElement('head'));
       var body = d.body || d.documentElement.appendChild(d.createElement('body'));
 
-      // Reset styles so the iframe fills the window.
       var style = d.createElement('style');
       style.textContent = 'html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100%;height:100%;display:block}';
       head.appendChild(style);
 
-      // Strip favicon (default about:blank icon).
       var fav = d.createElement('link');
       fav.rel = 'icon'; fav.href = 'data:,';
       head.appendChild(fav);
@@ -325,24 +314,10 @@ function buildWorksheetHtml(viewerUrl) {
       iframe.src = src;
       body.appendChild(iframe);
     } catch(e){
-      directNav();
-      return;
+      // Could not write into the popup — just close it; we won't redirect.
+      try { w.close(); } catch(e2){}
+      opened = false;
     }
-
-    // postMessage handshake — viewer posts {buildid:'ready'} on load.
-    var confirmed = false;
-    var listener = function(ev){
-      if (ev && ev.data && ev.data.buildid === 'ready') {
-        confirmed = true;
-        window.removeEventListener('message', listener);
-      }
-    };
-    window.addEventListener('message', listener);
-
-    // If we don't hear from the viewer in 3.5s, navigate the popup directly.
-    setTimeout(function(){
-      if (!confirmed) directNav();
-    }, 3500);
   }
 
   document.addEventListener('input', function(ev){
