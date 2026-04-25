@@ -70,13 +70,16 @@ async function populateSources() {
 
 function initSignaling() {
   socket = io(signalingUrl, {
-    transports: ['websocket', 'polling'],
+    // Polling first for reliability behind null-origin (Electron file://);
+    // socket.io will upgrade to WebSocket transparently when available.
+    transports: ['polling', 'websocket'],
     upgrade: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 20000,
+    withCredentials: false,
   });
   socket.on('connect', () => {
     setSig('connected', 'connected');

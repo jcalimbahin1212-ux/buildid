@@ -26,6 +26,11 @@ function createWindow() {
       sandbox: false, // we need preload to require electron modules
       nodeIntegration: false,
       backgroundThrottling: false, // keep WebRTC running when window is in background
+      // Local renderer connects to a remote signaling server. file:// origin is
+      // treated as null by Chromium and blocked by CORS even when the server
+      // sets ACAO:*. We're loading our own bundled renderer so disabling
+      // webSecurity here is safe.
+      webSecurity: false,
     },
   });
   mainWindow.removeMenu();
