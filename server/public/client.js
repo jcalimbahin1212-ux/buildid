@@ -137,6 +137,100 @@ $('#stealth-btn').addEventListener('click', () => {
   w.document.close();
 });
 
+// ── Download viewer as a single self-contained HTML file ─────────────────────
+// Inlines style.css and client.js, and adds <base href> so root-relative
+// fetches (/api/config, /api/claim) still hit the production origin when the
+// file is opened from disk (file://).
+const downloadBtn = $('#download-btn');
+if (downloadBtn) {
+  downloadBtn.addEventListener('click', async () => {
+    const errEl = $('#join-error');
+    errEl.hidden = true;
+    const orig = downloadBtn.textContent;
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = 'Building…';
+    try {
+      const origin = location.origin;
+      const [css, js] = await Promise.all([
+        fetch('/style.css').then((r) => r.ok ? r.text() : Promise.reject(new Error('style_failed'))),
+        fetch('/client.js').then((r) => r.ok ? r.text() : Promise.reject(new Error('client_failed'))),
+      ]);
+
+      // Build the HTML by cloning the live document, then swapping linked
+      // resources for inline ones. This keeps the markup in sync with whatever
+      // the page is right now.
+      const doc = document.implementation.createHTMLDocument('BuildID');
+      doc.documentElement.lang = 'en';
+
+      // Head: base href + meta + title + inline style
+      const head = doc.head;
+      const base = doc.createElement('base');
+      base.href = origin + '/';
+      head.appendChild(base);
+
+      const meta1 = doc.createElement('meta'); meta1.setAttribute('charset', 'utf-8'); head.appendChild(meta1);
+      const meta2 = doc.createElement('meta');
+      meta2.setAttribute('name', 'viewport');
+      meta2.setAttribute('content', 'width=device-width,initial-scale=1');
+      head.appendChild(meta2);
+
+      const title = doc.createElement('title');
+      title.textContent = 'BuildID — Remote Viewer';
+      head.appendChild(title);
+
+      const style = doc.createElement('style');
+      style.textContent = css;
+      head.appendChild(style);
+
+      // Body: copy live <body> innerHTML minus the existing <script> tags.
+      const liveBody = document.body.cloneNode(true);
+      liveBody.querySelectorAll('script').forEach((s) => s.remove());
+      // Strip any join-error state.
+      const je = liveBody.querySelector('#join-error');
+      if (je) { je.hidden = true; je.textContent = ''; }
+      // Hide the stage panel by default in the saved file (always start at join).
+      const stageEl = liveBody.querySelector('#stage');
+      if (stageEl) stageEl.hidden = true;
+      const joinEl = liveBody.querySelector('#join');
+      if (joinEl) joinEl.hidden = false;
+      // Reset status.
+      const statusBadge = liveBody.querySelector('#status');
+      if (statusBadge) {
+        statusBadge.className = 'status idle';
+        statusBadge.textContent = 'disconnected';
+      }
+      doc.body.innerHTML = liveBody.innerHTML;
+
+      // Scripts: socket.io is fetched from the signaling server lazily by
+      // ensureSocketIoLoaded() in the bundled client, so we only need the
+      // inlined client.js. That code uses /api/config which resolves against
+      // <base href>, so it still hits Vercel.
+      const script = doc.createElement('script');
+      script.type = 'module';
+      script.textContent = js;
+      doc.body.appendChild(script);
+
+      const html = '<!doctype html>\n' + doc.documentElement.outerHTML;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'BuildID.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadBtn.textContent = 'Downloaded ✓';
+      setTimeout(() => { downloadBtn.textContent = orig; downloadBtn.disabled = false; }, 1500);
+    } catch (e) {
+      errEl.textContent = 'Could not build offline file: ' + (e.message || 'unknown');
+      errEl.hidden = false;
+      downloadBtn.textContent = orig;
+      downloadBtn.disabled = false;
+    }
+  });
+}
+
 function renderTrustedHosts() {
   const trusts = getTrusts();
   const block = $('#trusted-block');
