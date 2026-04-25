@@ -99,7 +99,7 @@ const io = new IOServer(server, {
     // ALLOWED_ORIGINS is a comma-separated list. Use "*" in dev only.
     // Electron host renderers have no Origin header (file://) — allow those too.
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
+      if (!origin || origin === 'null') return cb(null, true);
       const allow = process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
         : null;
