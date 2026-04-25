@@ -11,8 +11,7 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "ALLOWALL" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://buildid-signaling.fly.dev; connect-src 'self' https: wss: ws:; media-src 'self' blob: mediastream:; img-src 'self' data: blob:; frame-ancestors 'self' about:" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://buildid-signaling.fly.dev; style-src 'self' 'unsafe-inline'; connect-src 'self' https: wss: ws:; media-src 'self' blob: mediastream:; img-src 'self' data: blob:; frame-ancestors *" }
       ]
     }
   ]
