@@ -30,6 +30,7 @@ function createWindow() {
   });
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.webContents.openDevTools({ mode: 'detach' });
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('config', { signalingUrl: SIGNALING_URL, viewerUrl: VIEWER_URL });
   });
@@ -39,21 +40,40 @@ function createWindow() {
 app.whenReady().then(() => {
   trustStore.init(app.getPath('userData'));
 
-  // Make outgoing requests to the signaling server look same-origin.
-  // The renderer is loaded from file:// so Chromium tags requests with
-  // `Origin: null`, which trips CORS preflights regardless of server policy.
-  // Rewriting Origin on the way out is the most reliable workaround.
+  // Make outgoing requests to the signaling server look like they came from the
+  // viewer origin (which is on the server's CORS allowlist). The renderer is
+  // loaded from file:// so Chromium otherwise tags requests with `Origin: null`
+  // which trips CORS regardless of server policy. Also force permissive CORS
+  // headers on responses so Chromium accepts them in the file:// renderer.
   try {
     const sigOrigin = new URL(SIGNALING_URL).origin;
-    session.defaultSession.webRequest.onBeforeSendHeaders(
-      { urls: [`${sigOrigin}/*`] },
-      (details, cb) => {
-        details.requestHeaders['Origin'] = sigOrigin;
-        cb({ requestHeaders: details.requestHeaders });
-      },
-    );
+    const stampedOrigin = new URL(VIEWER_URL).origin;
+    // Match HTTP(S) AND WebSocket (ws/wss) upgrades. Electron's webRequest
+    // surfaces WS handshakes under the ws:// or wss:// scheme, so the plain
+    // https://host/* filter would miss them and Origin would stay as the
+    // file:// renderer's "null", failing the server CORS check.
+    const sigUrl = new URL(SIGNALING_URL);
+    const wsScheme = sigUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsOrigin = `${wsScheme}//${sigUrl.host}`;
+    const filter = { urls: [`${sigOrigin}/*`, `${wsOrigin}/*`] };
+
+    session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, cb) => {
+      details.requestHeaders['Origin'] = stampedOrigin;
+      cb({ requestHeaders: details.requestHeaders });
+    });
+
+    session.defaultSession.webRequest.onHeadersReceived(filter, (details, cb) => {
+      const headers = { ...details.responseHeaders };
+      for (const k of Object.keys(headers)) {
+        if (/^access-control-/i.test(k)) delete headers[k];
+      }
+      headers['Access-Control-Allow-Origin'] = ['*'];
+      headers['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS'];
+      headers['Access-Control-Allow-Headers'] = ['*'];
+      cb({ responseHeaders: headers });
+    });
   } catch (e) {
-    console.warn('[BuildID] could not install Origin rewriter:', e.message);
+    console.warn('[BuildID] could not install signaling header rewrites:', e.message);
   }
 
   session.defaultSession.setDisplayMediaRequestHandler(
