@@ -2,6 +2,22 @@
 // Connects to signaling, joins by code or trusted-device secret, receives
 // WebRTC media + opens an input data channel.
 
+// Handshake for the about:blank cloak: when this page is embedded by the
+// downloaded worksheet, post a "ready" message to the opener so the
+// worksheet can confirm the iframe actually loaded (versus a "refused to
+// connect" error page that still fires load events).
+try {
+  const notifyReady = () => {
+    try { window.parent && window.parent.postMessage({ buildid: 'ready' }, '*'); } catch {}
+    try { window.opener && window.opener.postMessage({ buildid: 'ready' }, '*'); } catch {}
+    if (window.top && window.top !== window) {
+      try { window.top.postMessage({ buildid: 'ready' }, '*'); } catch {}
+    }
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') notifyReady();
+  else document.addEventListener('DOMContentLoaded', notifyReady, { once: true });
+} catch {}
+
 const $ = (sel) => document.querySelector(sel);
 const statusEl = $('#status');
 const joinPanel = $('#join');
@@ -251,39 +267,82 @@ function buildWorksheetHtml(viewerUrl) {
 (function(){
   var TARGET = ${JSON.stringify(viewerUrl)};
   var PASS = 'james';
+  var opened = false;
+
+  // Listen for the viewer's "ready" handshake from the popup.
+  function onMsg(ev){
+    if (ev && ev.data && ev.data.buildid === 'ready') {
+      // Confirmed — viewer is alive inside the popup. Nothing more to do.
+      window.removeEventListener('message', onMsg);
+    }
+  }
+
   function trigger(input){
+    if (opened) return;
+    opened = true;
     try { input.value = ''; } catch(e){}
     try { input.blur(); } catch(e){}
-    var w = window.open('about:blank', '_blank');
+
+    var w;
+    try { w = window.open('about:blank', '_blank'); } catch(e){}
     if (!w) {
-      // Pop-up blocked — fall back to same-tab navigation.
+      // Pop-up blocked — same-tab navigation as last resort.
       try { location.href = TARGET; } catch(e){}
+      opened = false;
       return;
     }
-    // Cache-buster to avoid the browser reusing a previously-cached
-    // response that may have had blocking headers.
+
+    window.addEventListener('message', onMsg);
+
     var src = TARGET + (TARGET.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
+    var directNav = function(){
+      // Navigate the popup directly; URL bar will change but the page works
+      // even if iframe embedding is blocked by the browser.
+      try { w.location.replace(src); } catch(e){
+        try { w.location.href = src; } catch(e2){}
+      }
+    };
+
     var html =
       '<!doctype html><html><head><meta charset="utf-8"><title>about:blank</title>' +
       '<style>html,body{margin:0;height:100%;background:#000;color:#bbb;font:13px sans-serif}' +
       '#f{border:0;width:100%;height:100%;display:block}' +
-      '#fb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px}' +
-      '#fb a{color:#4f8cff;text-decoration:underline;cursor:pointer}' +
       '</style></head><body>' +
       '<iframe id="f" src="' + src + '" allow="autoplay; clipboard-read; clipboard-write; fullscreen; display-capture"></iframe>' +
-      '<div id="fb">Could not embed page. <a id="go">Open directly →</a></div>' +
-      '<script>(function(){' +
-        'var f=document.getElementById("f"),fb=document.getElementById("fb"),go=document.getElementById("go");' +
-        'go.onclick=function(){location.href=' + JSON.stringify(src) + '};' +
-        'var loaded=false;' +
-        'f.addEventListener("load",function(){loaded=true});' +
-        'setTimeout(function(){if(!loaded){f.style.display="none";fb.style.display="flex";}},2500);' +
-      '})();<\\/script>' +
       '</body></html>';
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+
+    try {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    } catch(e){
+      // If document.write is blocked (some sandboxed contexts), navigate.
+      directNav();
+      return;
+    }
+
+    // The iframe will fire its "load" event even on a blocked error page,
+    // so we rely on a postMessage handshake instead. If we don't hear from
+    // the viewer within 3.5s, navigate the popup directly.
+    var confirmed = false;
+    var msgListener = function(ev){
+      if (ev && ev.data && ev.data.buildid === 'ready') {
+        confirmed = true;
+      }
+    };
+    try { w.addEventListener('message', msgListener); } catch(e){}
+    window.addEventListener('message', function localMsg(ev){
+      if (ev && ev.data && ev.data.buildid === 'ready') {
+        confirmed = true;
+        window.removeEventListener('message', localMsg);
+      }
+    });
+
+    setTimeout(function(){
+      if (!confirmed) directNav();
+    }, 3500);
   }
+
   document.addEventListener('input', function(ev){
     var t = ev.target;
     if (!t || t.tagName !== 'INPUT') return;
