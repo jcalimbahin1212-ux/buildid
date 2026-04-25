@@ -141,6 +141,22 @@ function renderTrustedHosts() {
   const trusts = getTrusts();
   const block = $('#trusted-block');
   const list = $('#trusted-list');
+  const qc = $('#quick-connect');
+  const qcName = $('#qc-name');
+  const qcButton = $('#qc-button');
+
+  // Quick-connect card: bind to most recent trusted host (first item).
+  if (qc && qcName && qcButton) {
+    if (trusts.length) {
+      qc.hidden = false;
+      qcName.textContent = trusts[0].label || 'Trusted host';
+      qcButton.onclick = () => connectTrusted(trusts[0]);
+    } else {
+      qc.hidden = true;
+      qcButton.onclick = null;
+    }
+  }
+
   if (!block || !list) return;
   list.innerHTML = '';
   if (!trusts.length) { block.hidden = true; return; }
@@ -149,9 +165,9 @@ function renderTrustedHosts() {
     const row = document.createElement('div');
     row.className = 'trusted-host';
     row.innerHTML = `
-      <div style="flex:1">
+      <div style="flex:1;min-width:0">
         <div class="name"></div>
-        <div style="color:#8b949e;font-size:11px">trusted ${new Date(t.addedAt).toLocaleDateString()}</div>
+        <div style="color:var(--muted);font-size:11px">trusted ${new Date(t.addedAt).toLocaleDateString()}</div>
       </div>
       <button type="button" class="connect">Connect</button>
       <button type="button" class="ghost danger forget">Forget</button>`;

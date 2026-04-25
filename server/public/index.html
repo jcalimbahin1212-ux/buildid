@@ -8,13 +8,28 @@
   </head>
   <body>
     <header>
-      <h1>BuildID</h1>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>BuildID</h1>
+      </div>
       <span id="status" class="status idle">disconnected</span>
     </header>
 
     <main id="join" class="panel">
+      <!-- Quick-connect card: appears when at least one trusted host exists. -->
+      <section id="quick-connect" class="quick-connect" hidden>
+        <div class="qc-info">
+          <div class="qc-label">Last trusted device</div>
+          <div class="qc-name" id="qc-name">—</div>
+        </div>
+        <button type="button" id="qc-button" class="primary big">
+          <span class="qc-bolt" aria-hidden="true">⚡</span>
+          <span>Connect</span>
+        </button>
+      </section>
+
       <h2>Connect to a desktop</h2>
-      <p>Enter the 6-character code shown in the BuildID app on the host computer.</p>
+      <p class="muted">Enter the 6-character code shown in the BuildID app on the host computer.</p>
       <form id="join-form">
         <input
           id="code"
