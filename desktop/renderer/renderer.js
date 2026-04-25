@@ -69,7 +69,15 @@ async function populateSources() {
 }
 
 function initSignaling() {
-  socket = io(signalingUrl, { transports: ['websocket'] });
+  socket = io(signalingUrl, {
+    transports: ['websocket', 'polling'],
+    upgrade: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+  });
   socket.on('connect', () => {
     setSig('connected', 'connected');
     register();
