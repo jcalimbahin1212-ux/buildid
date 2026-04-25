@@ -55,12 +55,35 @@
           <input type="checkbox" id="control-toggle" checked />
           Send input
         </label>
+        <label class="toggle">
+          <input type="checkbox" id="touch-toggle" />
+          Touch controls
+        </label>
         <button id="fullscreen-btn" type="button">Fullscreen</button>
         <button id="disconnect-btn" type="button" class="danger">Disconnect</button>
       </div>
       <div class="video-wrap" id="video-wrap">
         <video id="remote-video" autoplay playsinline></video>
         <div id="overlay" class="overlay" tabindex="0"></div>
+
+        <!-- Mobile / touch on-screen controls -->
+        <div id="touch-controls" class="touch-controls" hidden>
+          <div id="virtual-cursor" class="virtual-cursor" hidden></div>
+
+          <div id="joystick" class="joystick" aria-label="Cursor joystick">
+            <div id="joystick-knob" class="joystick-knob"></div>
+          </div>
+
+          <div class="touch-actions">
+            <button type="button" class="tbtn" data-act="left" title="Left click">L</button>
+            <button type="button" class="tbtn" data-act="right" title="Right click">R</button>
+            <button type="button" class="tbtn" data-act="scroll-up" title="Scroll up">▲</button>
+            <button type="button" class="tbtn" data-act="scroll-down" title="Scroll down">▼</button>
+            <button type="button" class="tbtn" data-act="keyboard" title="Keyboard">⌨</button>
+          </div>
+
+          <input id="touch-keyboard" class="touch-keyboard" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" aria-label="Send keystrokes" />
+        </div>
       </div>
       <div id="stats" class="stats"></div>
     </main>

@@ -144,3 +144,107 @@ button.ghost:hover { background: var(--panel); }
   white-space: pre;
   overflow-x: auto;
 }
+
+/* ── Touch / mobile on-screen controls ───────────────────────────────── */
+.touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* children opt back in */
+  z-index: 10;
+}
+
+.virtual-cursor {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: rgba(47, 129, 247, 0.85);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  transition: transform 0.05s linear;
+}
+
+.joystick {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(22, 27, 34, 0.55);
+  border: 2px solid rgba(139, 148, 158, 0.6);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  background: rgba(47, 129, 247, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.touch-actions {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, 64px);
+  gap: 10px;
+  pointer-events: auto;
+}
+.tbtn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(22, 27, 34, 0.7);
+  color: var(--text);
+  border: 2px solid rgba(139, 148, 158, 0.6);
+  font-size: 18px;
+  font-weight: 600;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.tbtn:active { background: rgba(47, 129, 247, 0.6); }
+
+.touch-keyboard {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: auto;
+}
+.touch-keyboard.active {
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  width: min(80%, 320px);
+  opacity: 1;
+  padding: 8px 12px;
+  font-size: 16px;
+  background: rgba(22, 27, 34, 0.9);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* On phone-sized screens, hide the panel max-width so join form fills nicely */
+@media (max-width: 600px) {
+  .panel { margin: 24px 12px; padding: 20px; }
+  .stage-bar { flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
+  .stage-bar #stage-info { flex-basis: 100%; }
+  .overlay { cursor: default; }
+}

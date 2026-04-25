@@ -388,6 +388,235 @@ function modBits(ev) {
   );
 }
 
+// ── Touch / mobile controls ──────────────────────────────────────────────────
+// A virtual on-screen joystick drives a virtual cursor (normalized 0..1 of the
+// video surface). Action buttons send clicks / scroll. A hidden text input
+// summons the device's soft keyboard and forwards keystrokes.
+(function setupTouchControls() {
+  const isTouch =
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    matchMedia('(pointer: coarse)').matches;
+
+  const touchToggle = $('#touch-toggle');
+  const controls = $('#touch-controls');
+  const cursorEl = $('#virtual-cursor');
+  const stick = $('#joystick');
+  const knob = $('#joystick-knob');
+  const kbdInput = $('#touch-keyboard');
+  if (!touchToggle || !controls || !stick) return;
+
+  // Default ON for touch devices.
+  if (isTouch) touchToggle.checked = true;
+
+  let active = false;
+  // Virtual cursor in normalized 0..1 video coords.
+  let cur = { x: 0.5, y: 0.5 };
+  // Joystick vector in -1..1 range.
+  let vec = { x: 0, y: 0 };
+  let dragId = null;
+  let rafId = null;
+  let lastTs = 0;
+
+  function show(on) {
+    active = !!on;
+    controls.hidden = !on;
+    cursorEl.hidden = !on;
+    if (on) {
+      placeCursor();
+      startLoop();
+    } else {
+      stopLoop();
+      vec.x = 0; vec.y = 0;
+      resetKnob();
+    }
+  }
+
+  function placeCursor() {
+    // Position virtualCursor inside the video-wrap based on cur (normalized).
+    const rect = video.getBoundingClientRect();
+    const wrapRect = $('#video-wrap').getBoundingClientRect();
+    const vw = video.videoWidth || rect.width;
+    const vh = video.videoHeight || rect.height;
+    const scale = Math.min(rect.width / vw, rect.height / vh) || 1;
+    const renderW = vw * scale;
+    const renderH = vh * scale;
+    const offsetX = (rect.width - renderW) / 2 + (rect.left - wrapRect.left);
+    const offsetY = (rect.height - renderH) / 2 + (rect.top - wrapRect.top);
+    cursorEl.style.left = (offsetX + cur.x * renderW) + 'px';
+    cursorEl.style.top = (offsetY + cur.y * renderH) + 'px';
+  }
+
+  function resetKnob() {
+    knob.style.transform = 'translate(0px, 0px)';
+  }
+
+  // Joystick drag handling via Pointer Events (works for touch, mouse, pen).
+  stick.addEventListener('pointerdown', (ev) => {
+    if (!active) return;
+    dragId = ev.pointerId;
+    stick.setPointerCapture(dragId);
+    updateJoystick(ev);
+  });
+  stick.addEventListener('pointermove', (ev) => {
+    if (ev.pointerId !== dragId) return;
+    updateJoystick(ev);
+  });
+  function endDrag(ev) {
+    if (ev.pointerId !== dragId) return;
+    try { stick.releasePointerCapture(dragId); } catch {}
+    dragId = null;
+    vec.x = 0; vec.y = 0;
+    resetKnob();
+  }
+  stick.addEventListener('pointerup', endDrag);
+  stick.addEventListener('pointercancel', endDrag);
+  stick.addEventListener('pointerleave', (ev) => { if (ev.pointerId === dragId) endDrag(ev); });
+
+  function updateJoystick(ev) {
+    const rect = stick.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = ev.clientX - cx;
+    let dy = ev.clientY - cy;
+    const max = rect.width / 2 - 20;
+    const len = Math.hypot(dx, dy);
+    if (len > max) {
+      dx = (dx / len) * max;
+      dy = (dy / len) * max;
+    }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    // Apply small dead-zone so resting finger doesn't drift.
+    const dead = 8;
+    const ndx = Math.abs(dx) < dead ? 0 : dx / max;
+    const ndy = Math.abs(dy) < dead ? 0 : dy / max;
+    vec.x = Math.max(-1, Math.min(1, ndx));
+    vec.y = Math.max(-1, Math.min(1, ndy));
+  }
+
+  function startLoop() {
+    if (rafId) return;
+    lastTs = performance.now();
+    const step = (ts) => {
+      const dt = Math.min(50, ts - lastTs); // ms
+      lastTs = ts;
+      // Speed scales with joystick magnitude squared for finer control near center.
+      const mag = Math.hypot(vec.x, vec.y);
+      if (mag > 0) {
+        // Cursor speed in normalized units per ms. 0.0008 ≈ full-screen in ~1.25s at full tilt.
+        const speed = 0.0008 * (0.3 + mag) * mag; // gentle curve
+        cur.x = Math.max(0, Math.min(1, cur.x + vec.x * speed * dt));
+        cur.y = Math.max(0, Math.min(1, cur.y + vec.y * speed * dt));
+        placeCursor();
+        send({ t: 'mm', x: cur.x, y: cur.y });
+      }
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+  }
+  function stopLoop() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
+  // Reposition cursor on resize / fullscreen / video metadata.
+  window.addEventListener('resize', () => active && placeCursor());
+  document.addEventListener('fullscreenchange', () => active && placeCursor());
+  video.addEventListener('loadedmetadata', () => active && placeCursor());
+
+  // Action buttons: left/right click, scroll, keyboard.
+  controls.querySelectorAll('.tbtn').forEach((btn) => {
+    const act = btn.dataset.act;
+    if (act === 'left' || act === 'right') {
+      const button = act;
+      const press = (ev) => {
+        ev.preventDefault();
+        send({ t: 'md', x: cur.x, y: cur.y, b: button });
+      };
+      const release = (ev) => {
+        ev.preventDefault();
+        send({ t: 'mu', x: cur.x, y: cur.y, b: button });
+      };
+      btn.addEventListener('pointerdown', press);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', (ev) => {
+        // Only release if a press is in progress (button has :active style); harmless otherwise.
+        if (ev.buttons === 0) return;
+        release(ev);
+      });
+    } else if (act === 'scroll-up' || act === 'scroll-down') {
+      const dir = act === 'scroll-up' ? -1 : 1;
+      // Repeat while held.
+      let timer = null;
+      const fire = () => send({ t: 'wh', dx: 0, dy: dir * 80 });
+      btn.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        fire();
+        timer = setInterval(fire, 80);
+      });
+      const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+      btn.addEventListener('pointerup', stop);
+      btn.addEventListener('pointercancel', stop);
+      btn.addEventListener('pointerleave', stop);
+    } else if (act === 'keyboard') {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        if (kbdInput.classList.contains('active')) {
+          kbdInput.classList.remove('active');
+          kbdInput.blur();
+        } else {
+          kbdInput.classList.add('active');
+          kbdInput.value = '';
+          kbdInput.focus();
+        }
+      });
+    }
+  });
+
+  // Soft-keyboard input: forward each character as kd+ku, plus support Backspace/Enter.
+  kbdInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Backspace' || ev.key === 'Enter' || ev.key === 'Tab') {
+      ev.preventDefault();
+      send({ t: 'kd', code: keyToCode(ev.key), key: ev.key, mods: modBits(ev) });
+      send({ t: 'ku', code: keyToCode(ev.key), key: ev.key, mods: modBits(ev) });
+    }
+  });
+  kbdInput.addEventListener('input', (ev) => {
+    const data = ev.data;
+    if (typeof data !== 'string' || !data) return;
+    for (const ch of data) {
+      const code = charToCode(ch);
+      const mods = /[A-Z]/.test(ch) ? 1 : 0;
+      send({ t: 'kd', code, key: ch, mods });
+      send({ t: 'ku', code, key: ch, mods });
+    }
+    // Keep field empty so iOS keyboard always sends "input" events for new chars.
+    kbdInput.value = '';
+  });
+
+  function keyToCode(k) {
+    if (k === 'Backspace') return 'Backspace';
+    if (k === 'Enter') return 'Enter';
+    if (k === 'Tab') return 'Tab';
+    return '';
+  }
+  function charToCode(ch) {
+    if (ch === ' ') return 'Space';
+    if (/[a-z]/i.test(ch)) return 'Key' + ch.toUpperCase();
+    if (/[0-9]/.test(ch)) return 'Digit' + ch;
+    return '';
+  }
+
+  touchToggle.addEventListener('change', () => show(touchToggle.checked));
+  // Apply default state when stage becomes visible.
+  const obs = new MutationObserver(() => {
+    if (!stage.hidden && touchToggle.checked) show(true);
+    if (stage.hidden) show(false);
+  });
+  obs.observe(stage, { attributes: true, attributeFilter: ['hidden'] });
+})();
+
 // ── UI controls ──────────────────────────────────────────────────────────────
 $('#fullscreen-btn').addEventListener('click', () => {
   const wrap = $('#video-wrap');
