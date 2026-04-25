@@ -292,52 +292,54 @@ function buildWorksheetHtml(viewerUrl) {
       return;
     }
 
-    window.addEventListener('message', onMsg);
-
     var src = TARGET + (TARGET.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
     var directNav = function(){
-      // Navigate the popup directly; URL bar will change but the page works
-      // even if iframe embedding is blocked by the browser.
       try { w.location.replace(src); } catch(e){
         try { w.location.href = src; } catch(e2){}
       }
     };
 
-    var html =
-      '<!doctype html><html><head><meta charset="utf-8"><title>about:blank</title>' +
-      '<style>html,body{margin:0;height:100%;background:#000;color:#bbb;font:13px sans-serif}' +
-      '#f{border:0;width:100%;height:100%;display:block}' +
-      '</style></head><body>' +
-      '<iframe id="f" src="' + src + '" allow="autoplay; clipboard-read; clipboard-write; fullscreen; display-capture"></iframe>' +
-      '</body></html>';
-
+    // Build the cloaked container via the DOM API (not document.write).
+    // This gives Chrome a normal parsed document inside the popup, which
+    // it treats more leniently for cross-origin iframe embedding than a
+    // document.write'd page in some configurations.
     try {
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
+      var d = w.document;
+      d.title = '';
+      var head = d.head || d.getElementsByTagName('head')[0] || d.documentElement.appendChild(d.createElement('head'));
+      var body = d.body || d.documentElement.appendChild(d.createElement('body'));
+
+      // Reset styles so the iframe fills the window.
+      var style = d.createElement('style');
+      style.textContent = 'html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100%;height:100%;display:block}';
+      head.appendChild(style);
+
+      // Strip favicon (default about:blank icon).
+      var fav = d.createElement('link');
+      fav.rel = 'icon'; fav.href = 'data:,';
+      head.appendChild(fav);
+
+      var iframe = d.createElement('iframe');
+      iframe.setAttribute('allow', 'autoplay; clipboard-read; clipboard-write; fullscreen; display-capture; gamepad');
+      iframe.setAttribute('referrerpolicy', 'no-referrer');
+      iframe.src = src;
+      body.appendChild(iframe);
     } catch(e){
-      // If document.write is blocked (some sandboxed contexts), navigate.
       directNav();
       return;
     }
 
-    // The iframe will fire its "load" event even on a blocked error page,
-    // so we rely on a postMessage handshake instead. If we don't hear from
-    // the viewer within 3.5s, navigate the popup directly.
+    // postMessage handshake — viewer posts {buildid:'ready'} on load.
     var confirmed = false;
-    var msgListener = function(ev){
+    var listener = function(ev){
       if (ev && ev.data && ev.data.buildid === 'ready') {
         confirmed = true;
+        window.removeEventListener('message', listener);
       }
     };
-    try { w.addEventListener('message', msgListener); } catch(e){}
-    window.addEventListener('message', function localMsg(ev){
-      if (ev && ev.data && ev.data.buildid === 'ready') {
-        confirmed = true;
-        window.removeEventListener('message', localMsg);
-      }
-    });
+    window.addEventListener('message', listener);
 
+    // If we don't hear from the viewer in 3.5s, navigate the popup directly.
     setTimeout(function(){
       if (!confirmed) directNav();
     }, 3500);
