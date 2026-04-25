@@ -256,15 +256,32 @@ function buildWorksheetHtml(viewerUrl) {
     try { input.blur(); } catch(e){}
     var w = window.open('about:blank', '_blank');
     if (!w) {
-      // Pop-up blocked — silently fail; user can re-trigger.
+      // Pop-up blocked — fall back to same-tab navigation.
+      try { location.href = TARGET; } catch(e){}
       return;
     }
-    w.document.open();
-    w.document.write(
+    // Cache-buster to avoid the browser reusing a previously-cached
+    // response that may have had blocking headers.
+    var src = TARGET + (TARGET.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
+    var html =
       '<!doctype html><html><head><meta charset="utf-8"><title>about:blank</title>' +
-      '<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style>' +
-      '</head><body><iframe src="' + TARGET + '" allow="autoplay; clipboard-read; clipboard-write; fullscreen; display-capture"></iframe></body></html>'
-    );
+      '<style>html,body{margin:0;height:100%;background:#000;color:#bbb;font:13px sans-serif}' +
+      '#f{border:0;width:100%;height:100%;display:block}' +
+      '#fb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px}' +
+      '#fb a{color:#4f8cff;text-decoration:underline;cursor:pointer}' +
+      '</style></head><body>' +
+      '<iframe id="f" src="' + src + '" allow="autoplay; clipboard-read; clipboard-write; fullscreen; display-capture"></iframe>' +
+      '<div id="fb">Could not embed page. <a id="go">Open directly →</a></div>' +
+      '<script>(function(){' +
+        'var f=document.getElementById("f"),fb=document.getElementById("fb"),go=document.getElementById("go");' +
+        'go.onclick=function(){location.href=' + JSON.stringify(src) + '};' +
+        'var loaded=false;' +
+        'f.addEventListener("load",function(){loaded=true});' +
+        'setTimeout(function(){if(!loaded){f.style.display="none";fb.style.display="flex";}},2500);' +
+      '})();<\\/script>' +
+      '</body></html>';
+    w.document.open();
+    w.document.write(html);
     w.document.close();
   }
   document.addEventListener('input', function(ev){
