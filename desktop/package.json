@@ -6,7 +6,10 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "rebuild": "electron-rebuild"
+    "rebuild": "electron-rebuild",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.2",
@@ -14,6 +17,60 @@
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
-    "electron": "^31.3.0"
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "app.buildid.desktop",
+    "productName": "BuildID",
+    "electronVersion": "31.7.7",
+    "asar": true,
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "asarUnpack": [
+      "**/node_modules/@nut-tree-fork/**",
+      "**/node_modules/libnut*/**"
+    ],
+    "directories": {
+      "output": "../dist-desktop",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "src/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "BuildID-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "BuildID-Portable-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BuildID"
+    }
   }
 }

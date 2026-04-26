@@ -2,8 +2,8 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 
 const SECRET =
-  process.env.SESSION_SECRET && process.env.SESSION_SECRET !== 'change-me-to-a-long-random-string'
-    ? process.env.SESSION_SECRET
+  process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim() !== '' && process.env.SESSION_SECRET.trim() !== 'change-me-to-a-long-random-string'
+    ? process.env.SESSION_SECRET.trim()
     : crypto.randomBytes(48).toString('hex');
 
 if (SECRET !== process.env.SESSION_SECRET) {

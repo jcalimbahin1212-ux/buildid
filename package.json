@@ -10,6 +10,7 @@
   "scripts": {
     "server": "npm --workspace server start",
     "desktop": "npm --workspace desktop start",
+    "dist": "npm --workspace desktop run dist",
     "install:all": "npm install"
   },
   "dependencies": {

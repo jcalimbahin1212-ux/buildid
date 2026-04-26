@@ -9,8 +9,8 @@ const { dispatchInput, setBaseDisplay } = require('./src/input');
 const trustStore = require('./src/trustStore');
 const { hashTrustSecret } = require('./src/hash');
 
-const SIGNALING_URL = process.env.SIGNALING_URL || process.env.PUBLIC_HOST || 'http://localhost:8080';
-const VIEWER_URL = process.env.PUBLIC_HOST || SIGNALING_URL;
+const SIGNALING_URL = process.env.SIGNALING_URL || 'https://buildid-signaling.fly.dev';
+const VIEWER_URL = process.env.PUBLIC_HOST || 'https://buildid.vercel.app';
 
 let mainWindow = null;
 
@@ -30,7 +30,9 @@ function createWindow() {
   });
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('config', { signalingUrl: SIGNALING_URL, viewerUrl: VIEWER_URL });
   });

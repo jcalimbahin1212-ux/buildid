@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('node:crypto');
 
 const SECRET =
-  process.env.SESSION_SECRET && process.env.SESSION_SECRET !== 'change-me-to-a-long-random-string'
-    ? process.env.SESSION_SECRET
+  process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim() !== '' && process.env.SESSION_SECRET.trim() !== 'change-me-to-a-long-random-string'
+    ? process.env.SESSION_SECRET.trim()
     : crypto.randomBytes(48).toString('hex');
 
 const TTL = Number(process.env.LINK_CODE_TTL_SECONDS || 600);
