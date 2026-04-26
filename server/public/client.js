@@ -379,11 +379,32 @@ function renderTrustedHosts() {
 async function connectTrusted(trust) {
   const errEl = $('#join-error');
   errEl.hidden = true;
+  setStatus('connecting', 'connecting');
   try {
-    setStatus('connecting', 'connecting');
     const { iceServers } = await loadConfig();
-    connectedTrustSecret = trust.secret;
-    await connect({ iceServers, trustSecret: trust.secret, trusted: true });
+    // Try the requested trust first, then fall back to any other stored
+    // trusts. This covers the case where the most-recent entry is stale
+    // (e.g. host file was reset), but an older entry still matches.
+    const all = getTrusts();
+    const ordered = [trust, ...all.filter((t) => t.secret !== trust.secret)];
+    let lastErr = null;
+    for (const candidate of ordered) {
+      try {
+        connectedTrustSecret = candidate.secret;
+        await connect({ iceServers, trustSecret: candidate.secret, trusted: true });
+        return; // success
+      } catch (e) {
+        lastErr = e;
+        // Auto-prune entries the server doesn't recognize.
+        if (/host_offline_or_revoked|invalid_secret/.test(e.message)) {
+          removeTrust(candidate.secret);
+        } else {
+          break; // network error etc. — don't burn through other secrets
+        }
+      }
+    }
+    renderTrustedHosts();
+    throw lastErr || new Error('host_offline_or_revoked');
   } catch (e) {
     setStatus('error', 'error');
     errEl.textContent = friendlyError(e.message);
