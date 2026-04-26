@@ -567,6 +567,9 @@ overlay.addEventListener('mousemove', (ev) => {
 });
 overlay.addEventListener('mousedown', (ev) => {
   ev.preventDefault();
+  // Steal focus so window-level key listeners know we're "active" and so the
+  // overlay can also receive any key events that target it directly.
+  try { overlay.focus({ preventScroll: true }); } catch {}
   const { x, y } = videoCoords(ev);
   send({ t: 'md', x, y, b: buttonMap[ev.button] || 'left' });
 });
@@ -589,6 +592,38 @@ overlay.addEventListener('keyup', (ev) => {
   ev.preventDefault();
   send({ t: 'ku', code: ev.code, key: ev.key, mods: modBits(ev) });
 });
+
+// Window-level keyboard capture — fires whenever the page itself is focused
+// and we have an open input channel. This is what lets you "just type" after
+// clicking on the video without worrying about which element has focus.
+// Skip if the user is typing into an actual <input>/<textarea>/contenteditable
+// (e.g. the join-code box, or the hidden touch keyboard which has its own
+// dedicated handler).
+function isEditableTarget(t) {
+  if (!t) return false;
+  if (t.isContentEditable) return true;
+  const tag = (t.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+
+window.addEventListener('keydown', (ev) => {
+  if (!inputChannel || inputChannel.readyState !== 'open') return;
+  if (isEditableTarget(ev.target)) return;
+  // Don't swallow browser shortcuts the user is likely to want
+  // (Ctrl+T, Ctrl+W, F5, F11, etc.). We forward Ctrl/Alt-modified keys but
+  // don't preventDefault on them, so the browser still does its thing.
+  const passthrough = ev.ctrlKey || ev.metaKey || ev.altKey || ev.key === 'F5' || ev.key === 'F11' || ev.key === 'F12';
+  if (!passthrough) ev.preventDefault();
+  send({ t: 'kd', code: ev.code, key: ev.key, mods: modBits(ev) });
+}, true);
+
+window.addEventListener('keyup', (ev) => {
+  if (!inputChannel || inputChannel.readyState !== 'open') return;
+  if (isEditableTarget(ev.target)) return;
+  const passthrough = ev.ctrlKey || ev.metaKey || ev.altKey || ev.key === 'F5' || ev.key === 'F11' || ev.key === 'F12';
+  if (!passthrough) ev.preventDefault();
+  send({ t: 'ku', code: ev.code, key: ev.key, mods: modBits(ev) });
+}, true);
 
 function modBits(ev) {
   return (
