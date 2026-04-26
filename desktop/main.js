@@ -12,6 +12,15 @@ const { hashTrustSecret } = require('./src/hash');
 const SIGNALING_URL = process.env.SIGNALING_URL || 'https://buildid-signaling.fly.dev';
 const VIEWER_URL = process.env.PUBLIC_HOST || 'https://buildid.vercel.app';
 
+// Force a stable userData path so the Portable EXE persists trusted devices
+// across launches (otherwise Electron's portable mode points userData at a
+// temp dir that Windows wipes between sessions, wiping trust hashes too).
+// Must run before app.whenReady() / any path query.
+try {
+  const stableDir = path.join(app.getPath('appData'), 'BuildID');
+  app.setPath('userData', stableDir);
+} catch {}
+
 let mainWindow = null;
 
 function createWindow() {
