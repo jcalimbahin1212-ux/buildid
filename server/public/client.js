@@ -584,15 +584,6 @@ overlay.addEventListener('wheel', (ev) => {
   send({ t: 'wh', dx: ev.deltaX, dy: ev.deltaY });
 }, { passive: false });
 
-overlay.addEventListener('keydown', (ev) => {
-  ev.preventDefault();
-  send({ t: 'kd', code: ev.code, key: ev.key, mods: modBits(ev) });
-});
-overlay.addEventListener('keyup', (ev) => {
-  ev.preventDefault();
-  send({ t: 'ku', code: ev.code, key: ev.key, mods: modBits(ev) });
-});
-
 // Window-level keyboard capture — fires whenever the page itself is focused
 // and we have an open input channel. This is what lets you "just type" after
 // clicking on the video without worrying about which element has focus.
