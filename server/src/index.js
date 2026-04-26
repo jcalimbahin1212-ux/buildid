@@ -12,7 +12,14 @@ import { issueViewerToken, verifyViewerToken } from './auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8080);
-const ICE_SERVERS = JSON.parse(process.env.ICE_SERVERS || '[]');
+let ICE_SERVERS;
+try {
+  const raw = (process.env.ICE_SERVERS || '').trim();
+  ICE_SERVERS = raw ? JSON.parse(raw) : [{ urls: 'stun:stun.l.google.com:19302' }];
+} catch (e) {
+  console.error('[BuildID] ICE_SERVERS env var is not valid JSON, falling back to STUN-only:', e.message);
+  ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+}
 
 const app = express();
 app.use(express.json({ limit: '32kb' }));
