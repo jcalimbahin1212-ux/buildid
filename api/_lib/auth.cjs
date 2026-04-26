@@ -25,7 +25,7 @@ function verifyViewerToken(token) {
 }
 
 function hashTrustSecret(secret) {
-  return crypto.createHmac('sha256', SECRET).update(String(secret)).digest('hex');
+  return crypto.createHash('sha256').update(String(secret)).digest('hex');
 }
 
 module.exports = { issueViewerToken, verifyViewerToken, hashTrustSecret };
