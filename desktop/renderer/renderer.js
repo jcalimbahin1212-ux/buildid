@@ -121,6 +121,7 @@ function register() {
 async function pushTrustHashes() {
   try {
     const hashes = await window.buildid.trust.hashes();
+    log(`pushing ${hashes.length} trust hash(es)...`);
     socket.emit('host:set-trusts', { hostToken, hashes }, (ack) => {
       if (ack?.error) log('trust sync error:', ack.error);
       else log(`trust sync: ${ack.count} device(s)`);
