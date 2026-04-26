@@ -34,6 +34,20 @@ export function findCodeByTrustHash(hash) {
   return trustHashIndex.get(hash) || null;
 }
 
+export function debugStats() {
+  return {
+    sessions: sessions.size,
+    trustHashes: trustHashIndex.size,
+    codes: Array.from(sessions.keys()),
+    hashesByCode: Array.from(sessions.entries()).map(([c, s]) => ({
+      code: c,
+      trustCount: s.trustedHashes.size,
+      hasViewer: !!s.viewerSocketId,
+      hashes: Array.from(s.trustedHashes).map((h) => h.slice(0, 12) + '…'),
+    })),
+  };
+}
+
 export { hashTrustSecret };
 
 export function attachSignaling(io, { verifyViewerToken }) {

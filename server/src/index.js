@@ -7,7 +7,7 @@ import path from 'node:path';
 import helmet from 'helmet';
 import { fileURLToPath } from 'node:url';
 import { Server as IOServer } from 'socket.io';
-import { attachSignaling, findCodeByTrustHash, hashTrustSecret } from './signaling.js';
+import { attachSignaling, findCodeByTrustHash, hashTrustSecret, debugStats } from './signaling.js';
 import { issueViewerToken, verifyViewerToken } from './auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -89,6 +89,21 @@ app.get('/cloak.html', (_req, res) => {
 
 // Health
 app.get('/healthz', (_req, res) => res.send('ok'));
+
+// Debug: inspect server state. Returns truncated hash prefixes so secrets
+// are not leaked. Also lets a viewer test whether their secret would match.
+app.get('/api/debug', (req, res) => {
+  const out = debugStats();
+  const probe = String(req.query?.secret || '');
+  if (probe) {
+    const h = hashTrustSecret(probe);
+    out.probe = {
+      hashPrefix: h.slice(0, 12) + '…',
+      matchesCode: findCodeByTrustHash(h) || null,
+    };
+  }
+  res.json(out);
+});
 
 const useTls = process.env.TLS_CERT && process.env.TLS_KEY;
 const server = useTls
